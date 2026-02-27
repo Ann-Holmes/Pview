@@ -75,7 +75,11 @@ async def post(file: UploadFile):
 
 @rt("/select/{fname}")
 def get(fname: str):
-    return Script(f"document.getElementById('pdf-frame').src = '/file/{fname}'")
+    # Update both PDF viewer and chat panel's current file
+    return Script(f"""
+        document.getElementById('pdf-frame').src = '/file/{fname}';
+        document.querySelector('input[name="current_file"]').value = '{fname}';
+    """)
 
 @rt("/file/{fname}")
 def get(fname: str):
@@ -168,7 +172,9 @@ async def post(request: Request):
             if call.function.name == "search_document":
                 import json
                 query = json.loads(call.function.arguments)["query"]
-                md_file = f"{UPLOAD_DIR}/{current_file}.md"
+                # Strip .pdf extension to get markdown file
+                md_base = current_file.replace(".pdf", "") if current_file.endswith(".pdf") else current_file
+                md_file = f"{UPLOAD_DIR}/{md_base}.md"
                 try:
                     grep_result = subprocess.run(
                         ["rg", "-i", query, md_file, "-C", "2"],
