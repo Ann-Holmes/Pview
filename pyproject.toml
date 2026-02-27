@@ -1,0 +1,15 @@
+[project]
+name = "pview"
+version = "0.1.0"
+description = "LLM-assisted literature reading tool"
+requires-python = ">=3.10"
+dependencies = [
+    "python-fasthtml",
+    "markitdown",
+    "openai",
+    "python-dotenv",
+    "httpx",
+]
+
+[tool.uv]
+dev-dependencies = []
