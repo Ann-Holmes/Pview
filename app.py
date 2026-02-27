@@ -12,7 +12,6 @@ from annotation import load_annotations
 chat_sessions = {}
 
 app = FastHTML(hdrs=(
-    picolink(),
     Script(src="https://cdn.tailwindcss.com"),
     Script(src="https://cdn.jsdelivr.net/npm/daisyui@4"),
     Script("""
