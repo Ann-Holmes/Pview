@@ -2,6 +2,7 @@ from fasthtml.common import *
 from pathlib import Path
 from starlette.requests import UploadFile
 from config import UPLOAD_DIR
+from markitdown import MarkItDown
 
 app = FastHTML(hdrs=(
     picolink(),
@@ -52,18 +53,21 @@ def chat_panel():
 
 @rt("/upload")
 async def post(file: UploadFile):
-    filebuffer = await file.read()
-    filepath = Path(UPLOAD_DIR) / file.filename
-    filepath.write_bytes(filebuffer)
+    try:
+        # Sanitize filename to prevent path traversal
+        safe_filename = Path(file.filename).name
+        filepath = Path(UPLOAD_DIR) / safe_filename
+        filepath.write_bytes(await file.read())
 
-    # Parse PDF to Markdown
-    from markitdown import MarkItDown
-    md = MarkItDown()
-    result = md.convert(str(filepath))
-    md_filepath = filepath.parent / f"{filepath.stem}.md"
-    md_filepath.write_text(result.text_content)
+        # Parse PDF to Markdown
+        md = MarkItDown()
+        result = md.convert(str(filepath))
+        md_filepath = filepath.parent / f"{filepath.stem}.md"
+        md_filepath.write_text(result.text_content)
 
-    return P(f"Uploaded {file.filename} and parsed to Markdown")
+        return P(f"Uploaded {safe_filename} and parsed to Markdown")
+    except Exception as e:
+        return P(f"Error: {str(e)}", cls="text-error")
 
 @rt("/")
 def get():
