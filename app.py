@@ -1,5 +1,4 @@
 from fasthtml.common import *
-from config import UPLOAD_DIR
 
 app = FastHTML(hdrs=(
     picolink(),
@@ -26,7 +25,7 @@ def pdf_viewer():
         cls="flex-1 bg-base-100 p-4",
         id="pdf-viewer",
     )(
-        Iframe(src="", cls="w-full h-full border-none", id="pdf-frame")
+        Iframe(src="", cls="w-full h-full border-none", id="pdf-frame", sandbox="allow-scripts allow-same-origin")
     )
 
 def chat_panel():
