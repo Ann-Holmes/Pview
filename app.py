@@ -17,14 +17,19 @@ app = FastHTML(hdrs=(
     Script("""
 function toggleSidebar() {
     const sidebar = document.getElementById('sidebar');
+    const btn = document.getElementById('sidebar-toggle');
     if (sidebar.classList.contains('w-64')) {
         sidebar.classList.remove('w-64');
         sidebar.classList.add('w-0');
         sidebar.classList.add('overflow-hidden');
+        btn.style.left = '0rem';
+        btn.innerHTML = '→';
     } else {
         sidebar.classList.remove('w-0');
         sidebar.classList.remove('overflow-hidden');
         sidebar.classList.add('w-64');
+        btn.style.left = '16rem';
+        btn.innerHTML = '←';
     }
 }
 """),
@@ -37,14 +42,7 @@ def file_sidebar():
         cls="flex flex-col h-full bg-base-200 w-64 min-h-screen p-4 transition-all duration-300",
         id="sidebar",
     )(
-        Div(cls="flex justify-between items-center mb-4")(
-            H2("Files", cls="text-xl font-bold"),
-            Button(
-                "<",
-                cls="btn btn-sm",
-                onclick="toggleSidebar()"
-            )
-        ),
+        H2("Files", cls="text-xl font-bold mb-4"),
         Form(hx_post="/upload", hx_target="#upload-result", enc_type="multipart/form-data")(
             Input(type="file", name="file", accept=".pdf", cls="file-input file-input-bordered file-input-sm w-full max-w-xs"),
             Button("Upload", type="submit", cls="btn btn-primary btn-sm mt-2"),
@@ -147,7 +145,15 @@ def get_file_list():
 @rt("/")
 def get():
     return Titled("LLM Literature Reader",
-        Div(cls="flex h-screen")(
+        Div(cls="flex h-screen relative")(
+            # External toggle button (always visible)
+            Button(
+                "←",
+                cls="btn btn-sm absolute z-10",
+                id="sidebar-toggle",
+                onclick="toggleSidebar()",
+                style="left: 16rem; transition: left 0.3s;"
+            ),
             file_sidebar(),
             pdf_viewer(),
             chat_panel("")
