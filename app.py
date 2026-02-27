@@ -3,6 +3,9 @@ from pathlib import Path
 from starlette.requests import Request, UploadFile
 from config import UPLOAD_DIR
 from markitdown import MarkItDown
+import subprocess
+from llm import client, SEARCH_TOOL
+from annotation import load_annotations
 
 app = FastHTML(hdrs=(
     picolink(),
@@ -36,7 +39,7 @@ def pdf_viewer():
         Iframe(src="", cls="w-full h-full border-none", id="pdf-frame", sandbox="allow-scripts allow-same-origin")
     )
 
-def chat_panel():
+def chat_panel(current_file: str = ""):
     return Div(
         cls="w-96 bg-base-200 p-4 flex flex-col",
         id="chat-panel",
@@ -46,6 +49,7 @@ def chat_panel():
             P("Start a conversation about your paper...", cls="text-sm")
         ),
         Form(hx_post="/chat", hx_target="#chat-messages")(
+            Input(type="hidden", name="current_file", value=current_file),
             Input(name="message", cls="input input-bordered w-full", placeholder="Ask about the paper..."),
             Button("Send", cls="btn btn-primary mt-2")
         )
@@ -118,8 +122,78 @@ def get():
         Div(cls="flex h-screen")(
             file_sidebar(),
             pdf_viewer(),
-            chat_panel()
+            chat_panel("")
         )
     )
+
+
+@rt("/chat")
+async def post(request: Request):
+    form = await request.form()
+    user_message = form.get("message")
+    current_file = form.get("current_file", "")
+
+    # Load annotations if file is selected
+    annotations = {}
+    if current_file:
+        annotations = load_annotations(current_file)
+
+    # Build context with annotations
+    system_message = "You are a helpful research assistant helping the user understand a scientific paper."
+    if annotations.get("highlights") or annotations.get("notes"):
+        system_message += "\n\nUser has highlighted/annotated the following:\n"
+        for h in annotations.get("highlights", []):
+            system_message += f"- Highlight: {h.get('text', '')}\n"
+        for n in annotations.get("notes", []):
+            system_message += f"- Note: {n.get('text', '')}\n"
+
+    # Get chat history (simplified - start fresh each time for MVP)
+    messages = [
+        {"role": "system", "content": system_message},
+        {"role": "user", "content": user_message}
+    ]
+
+    # Chat with function calling
+    response = client.chat.completions.create(
+        model="deepseek-chat",
+        messages=messages,
+        tools=[SEARCH_TOOL]
+    )
+
+    # Handle function call if present
+    result = response.choices[0].message
+    if result.tool_calls:
+        # Run ripgrep search
+        for call in result.tool_calls:
+            if call.function.name == "search_document":
+                import json
+                query = json.loads(call.function.arguments)["query"]
+                md_file = f"{UPLOAD_DIR}/{current_file}.md"
+                try:
+                    grep_result = subprocess.run(
+                        ["rg", "-i", query, md_file, "-C", "2"],
+                        capture_output=True, text=True
+                    )
+                    search_results = grep_result.stdout or "No results found"
+                except Exception as e:
+                    search_results = f"Error running search: {e}"
+
+                # Add search results and continue
+                messages.append({"role": "assistant", "content": result.content})
+                messages.append({
+                    "role": "tool",
+                    "tool_call_id": call.id,
+                    "content": search_results
+                })
+
+                # Get final response
+                response = client.chat.completions.create(
+                    model="deepseek-chat",
+                    messages=messages
+                )
+                result = response.choices[0].message
+
+    return P(result.content or "No response")
+
 
 serve()
