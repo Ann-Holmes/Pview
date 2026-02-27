@@ -24,7 +24,7 @@ def file_sidebar():
             Div(id="upload-result")
         ),
         Div(id="file-list", cls="flex-1 overflow-y-auto")(
-            P("No files uploaded", cls="text-sm text-gray-500")
+            get_file_list()
         )
     )
 
@@ -68,6 +68,35 @@ async def post(file: UploadFile):
         return P(f"Uploaded {safe_filename} and parsed to Markdown")
     except Exception as e:
         return P(f"Error: {str(e)}", cls="text-error")
+
+@rt("/select/{fname}")
+def get(fname: str):
+    return Script(f"document.getElementById('pdf-frame').src = '/file/{fname}'")
+
+@rt("/file/{fname}")
+def get(fname: str):
+    from starlette.responses import FileResponse
+    return FileResponse(f"{UPLOAD_DIR}/{fname}", media_type="application/pdf")
+
+
+def get_file_list():
+    upload_path = Path(UPLOAD_DIR)
+    pdf_files = list(upload_path.glob("*.pdf"))
+
+    if not pdf_files:
+        return P("No files uploaded", cls="text-sm text-gray-500")
+
+    items = []
+    for f in pdf_files:
+        items.append(
+            Div(
+                cls="cursor-pointer hover:bg-base-300 p-2 rounded",
+                hx_get=f"/select/{f.name}",
+                hx_target="#pdf-frame",
+            )(f.name)
+        )
+    return Div(*items)
+
 
 @rt("/")
 def get():
