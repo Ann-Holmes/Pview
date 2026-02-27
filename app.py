@@ -60,7 +60,7 @@ async def post(file: UploadFile):
     from markitdown import MarkItDown
     md = MarkItDown()
     result = md.convert(str(filepath))
-    md_filepath = filepath.with_suffix(filepath.suffix + ".md")
+    md_filepath = filepath.parent / f"{filepath.stem}.md"
     md_filepath.write_text(result.text_content)
 
     return P(f"Uploaded {file.filename} and parsed to Markdown")
