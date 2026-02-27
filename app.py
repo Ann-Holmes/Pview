@@ -1,6 +1,7 @@
 from fasthtml.common import *
 from pathlib import Path
-from starlette.requests import Request, UploadFile
+from starlette.requests import Request
+from starlette.datastructures import UploadFile
 from config import UPLOAD_DIR
 from markitdown import MarkItDown
 import subprocess
