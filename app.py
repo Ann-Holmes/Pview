@@ -14,22 +14,43 @@ app = FastHTML(hdrs=(
     picolink(),
     Script(src="https://cdn.tailwindcss.com"),
     Script(src="https://cdn.jsdelivr.net/npm/daisyui@4"),
+    Script("""
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    if (sidebar.classList.contains('w-64')) {
+        sidebar.classList.remove('w-64');
+        sidebar.classList.add('w-0');
+        sidebar.classList.add('overflow-hidden');
+    } else {
+        sidebar.classList.remove('w-0');
+        sidebar.classList.remove('overflow-hidden');
+        sidebar.classList.add('w-64');
+    }
+}
+"""),
 ))
 
 rt = app.route
 
 def file_sidebar():
     return Div(
-        cls="flex flex-col h-full bg-base-200 w-64 min-h-screen p-4",
+        cls="flex flex-col h-full bg-base-200 w-64 min-h-screen p-4 transition-all duration-300",
         id="sidebar",
     )(
-        H2("Files", cls="text-xl font-bold mb-4"),
+        Div(cls="flex justify-between items-center mb-4")(
+            H2("Files", cls="text-xl font-bold"),
+            Button(
+                "<",
+                cls="btn btn-sm",
+                onclick="toggleSidebar()"
+            )
+        ),
         Form(hx_post="/upload", hx_target="#upload-result", enc_type="multipart/form-data")(
             Input(type="file", name="file", accept=".pdf", cls="file-input file-input-bordered file-input-sm w-full max-w-xs"),
             Button("Upload", type="submit", cls="btn btn-primary btn-sm mt-2"),
             Div(id="upload-result")
         ),
-        Div(id="file-list", cls="flex-1 overflow-y-auto")(
+        Div(id="file-list", cls="flex-1 overflow-y-auto mt-4")(
             get_file_list()
         )
     )
