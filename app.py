@@ -1,4 +1,7 @@
 from fasthtml.common import *
+from pathlib import Path
+from starlette.requests import UploadFile
+from config import UPLOAD_DIR
 
 app = FastHTML(hdrs=(
     picolink(),
@@ -14,7 +17,11 @@ def file_sidebar():
         id="sidebar",
     )(
         H2("Files", cls="text-xl font-bold mb-4"),
-        Button("Upload PDF", cls="btn btn-primary btn-sm mb-4"),
+        Form(hx_post="/upload", hx_target="#upload-result", enc_type="multipart/form-data")(
+            Input(type="file", name="file", accept=".pdf", cls="file-input file-input-bordered file-input-sm w-full max-w-xs"),
+            Button("Upload", type="submit", cls="btn btn-primary btn-sm mt-2"),
+            Div(id="upload-result")
+        ),
         Div(id="file-list", cls="flex-1 overflow-y-auto")(
             P("No files uploaded", cls="text-sm text-gray-500")
         )
@@ -42,6 +49,21 @@ def chat_panel():
             Button("Send", cls="btn btn-primary mt-2")
         )
     )
+
+@rt("/upload")
+async def post(file: UploadFile):
+    filebuffer = await file.read()
+    filepath = Path(UPLOAD_DIR) / file.filename
+    filepath.write_bytes(filebuffer)
+
+    # Parse PDF to Markdown
+    from markitdown import MarkItDown
+    md = MarkItDown()
+    result = md.convert(str(filepath))
+    md_filepath = filepath.with_suffix(filepath.suffix + ".md")
+    md_filepath.write_text(result.text_content)
+
+    return P(f"Uploaded {file.filename} and parsed to Markdown")
 
 @rt("/")
 def get():
