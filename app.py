@@ -1,6 +1,6 @@
 from fasthtml.common import *
 from pathlib import Path
-from starlette.requests import UploadFile
+from starlette.requests import Request, UploadFile
 from config import UPLOAD_DIR
 from markitdown import MarkItDown
 
@@ -77,6 +77,20 @@ def get(fname: str):
 def get(fname: str):
     from starlette.responses import FileResponse
     return FileResponse(f"{UPLOAD_DIR}/{fname}", media_type="application/pdf")
+
+
+@rt("/annotations/{fname}")
+def get(fname: str):
+    from annotation import load_annotations
+    return load_annotations(fname)
+
+
+@rt("/annotations/{fname}")
+async def post(fname: str, request: Request):
+    from annotation import save_annotations
+    data = await request.json()
+    save_annotations(fname, data)
+    return {"status": "saved"}
 
 
 def get_file_list():
