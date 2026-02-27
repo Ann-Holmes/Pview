@@ -1,5 +1,5 @@
 fasthtml
-markitdown
+markitdown[pdf]
 openai
 python-dotenv
 httpx
