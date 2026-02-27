@@ -1,10 +1,15 @@
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()
+# Load .env from project root
+env_path = Path(__file__).parent / ".env"
+load_dotenv(env_path)
 
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY", "")
-DEEPSEEK_BASE_URL = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
-DEEPSEEK_MODEL = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
+if not DEEPSEEK_API_KEY:
+    raise ValueError("DEEPSEEK_API_KEY is not set. Copy .env.example to .env and set your API key.")
 
-UPLOAD_DIR = "uploads"
+DEEPSEEK_BASE_URL: str = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
+DEEPSEEK_MODEL: str = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
+UPLOAD_DIR: str = "uploads"
