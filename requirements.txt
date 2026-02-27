@@ -1,0 +1,5 @@
+fasthtml
+markitdown
+openai
+python-dotenv
+httpx
