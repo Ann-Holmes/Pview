@@ -7,6 +7,9 @@ import subprocess
 from llm import client, SEARCH_TOOL
 from annotation import load_annotations
 
+# Simple session-based chat history (for MVP)
+chat_sessions = {}
+
 app = FastHTML(hdrs=(
     picolink(),
     Script(src="https://cdn.tailwindcss.com"),
@@ -137,12 +140,19 @@ async def post(request: Request):
     user_message = form.get("message")
     current_file = form.get("current_file", "")
 
+    # Use current_file as session key
+    session_key = current_file or "default"
+
+    # Initialize or get history
+    if session_key not in chat_sessions:
+        chat_sessions[session_key] = []
+
     # Load annotations if file is selected
     annotations = {}
     if current_file:
         annotations = load_annotations(current_file)
 
-    # Build context with annotations
+    # Build system message with annotations
     system_message = "You are a helpful research assistant helping the user understand a scientific paper."
     if annotations.get("highlights") or annotations.get("notes"):
         system_message += "\n\nUser has highlighted/annotated the following:\n"
@@ -151,11 +161,10 @@ async def post(request: Request):
         for n in annotations.get("notes", []):
             system_message += f"- Note: {n.get('text', '')}\n"
 
-    # Get chat history (simplified - start fresh each time for MVP)
-    messages = [
-        {"role": "system", "content": system_message},
-        {"role": "user", "content": user_message}
-    ]
+    # Build messages with history
+    messages = [{"role": "system", "content": system_message}]
+    messages.extend(chat_sessions[session_key])
+    messages.append({"role": "user", "content": user_message})
 
     # Chat with function calling
     response = client.chat.completions.create(
@@ -166,13 +175,13 @@ async def post(request: Request):
 
     # Handle function call if present
     result = response.choices[0].message
+    assistant_message = result.content or ""
+
     if result.tool_calls:
-        # Run ripgrep search
         for call in result.tool_calls:
             if call.function.name == "search_document":
                 import json
                 query = json.loads(call.function.arguments)["query"]
-                # Strip .pdf extension to get markdown file
                 md_base = current_file.replace(".pdf", "") if current_file.endswith(".pdf") else current_file
                 md_file = f"{UPLOAD_DIR}/{md_base}.md"
                 try:
@@ -184,7 +193,6 @@ async def post(request: Request):
                 except Exception as e:
                     search_results = f"Error running search: {e}"
 
-                # Add search results and continue
                 messages.append({"role": "assistant", "content": result.content})
                 messages.append({
                     "role": "tool",
@@ -192,14 +200,18 @@ async def post(request: Request):
                     "content": search_results
                 })
 
-                # Get final response
                 response = client.chat.completions.create(
                     model="deepseek-chat",
                     messages=messages
                 )
                 result = response.choices[0].message
+                assistant_message = result.content or ""
 
-    return P(result.content or "No response")
+    # Save to history
+    chat_sessions[session_key].append({"role": "user", "content": user_message})
+    chat_sessions[session_key].append({"role": "assistant", "content": assistant_message})
+
+    return P(assistant_message or "No response")
 
 
 serve()
